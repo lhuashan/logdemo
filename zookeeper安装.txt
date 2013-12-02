@@ -1,0 +1,105 @@
+﻿zookeeper 安装
+
+前提：
+  本安装包括单机安装和集群安装。
+  默认已经安装好JDK、配置好/etc/hosts、ssh无验证登录（可参考文件: hadoop2.2.0安装.txt)
+  
+1. 下载 zookeeper
+   http://zookeeper.apache.org
+   
+2. 解压文件
+  把文件zookeeper-3.4.5.tar.gz   放到 /opt目录下，然后解压，命令如下：
+  tar zxf zookeeper-3.4.5.tar.gz  
+  生成目录： /opt/zookeeper-3.4.5
+  若多台机器集群安装，则每台机器也这样解压文件。
+
+3. 创建zookeeper 存储目录
+  命令如下：
+  mkdir /opt/hdfs/zk0 -p
+  若多台机器集群安装，则每台机器也这样创建目录。
+
+4. 新建myid
+  命令如下：
+echo "1" > /opt/hdfs/zk0/myid 
+ 
+注意：若多台机器集群安装，则每台机器也需要加按顺序亲建
+如 server-02机器上：
+echo "2" > /opt/hdfs/zk0/myid  
+server-03机器上：
+echo "3" > /opt/hdfs/zk0/myid  
+
+
+5.配置参数
+ 配置文件/opt/zookeeper-3.4.5/conf/zoo.cfg
+命令： vi zoo.cfg
+内容如下:
+  ckTime=2000
+# The number of milliseconds of each tick
+tickTime=2000
+# The number of ticks that the initial 
+# synchronization phase can take
+initLimit=10
+# The number of ticks that can pass between 
+# sending a request and getting an acknowledgement
+syncLimit=2
+# the directory where the snapshot is stored.
+# do not use /tmp for storage, /tmp here is just 
+# example sakes.
+dataDir=/opt/hdfs/zk0
+# the port at which the clients will connect
+clientPort=2181
+#
+# Be sure to read the maintenance section of the 
+# administrator guide before turning on autopurge.
+#
+# http://zookeeper.apache.org/doc/current/zookeeperAdmin.html#sc_maintenance
+#
+# The number of snapshots to retain in dataDir
+autopurge.snapRetainCount=3
+# Purge task interval in hours
+# Set to "0" to disable auto purge feature
+autopurge.purgeInterval=6
+server.1=10.127.1.152:2888:3888
+
+注意：若多台机器集群安装，则每台机器IP也需要加到这里，如
+server.1=10.127.1.152:2888:3888
+server.2=10.127.1.153:2888:3888
+server.3=10.127.1.154:2888:3888
+server.4=10.127.1.155:2888:3888
+并且把这个配置文件复制到每台服务器的/opt/zookeeper-3.4.5/conf 目录下
+
+6. 启动ZooKeeper集群
+在ZooKeeper集群的每个结点上，执行启动ZooKeeper服务的脚本，如下所示：
+slave-01机器上，命令如下：
+/opt/zookeeper-3.4.5bin/zkServer.sh start  
+slave-02机器上，命令如下：
+/opt/zookeeper-3.4.5bin/zkServer.sh start  
+slave-03机器上，命令如下：
+/opt/zookeeper-3.4.5bin/zkServer.sh start 
+
+7. 检查状态
+7.1 检查进程命令： jps
+结果如下：
+5321 QuorumPeerMain
+5338 Jps
+
+7.2 可以通过ZooKeeper的脚本来查看启动状态，包括集群中各个结点的角色（或是Leader，或是Follower），如下所示，是在ZooKeeper集群中的每个结点上查询的结果：
+slave-02机器上：
+/home/zookeeper-3.4.5/bin/zkServer.sh status
+JMX enabled by default
+Using config: /home/zookeeper-3.4.5/bin/../conf/zoo.cfg
+Mode: leader
+
+slave-01机器上：
+  /home/zookeeper-3.4.5/bin/zkServer.sh status
+JMX enabled by default
+Using config: /home/zookeeper-3.4.5/bin/../conf/zoo.cfg
+Mode: follower
+
+通过上面状态查询结果可见，slave-02是集群的Leader，其余的是Follower。
+
+
+8. 参考资料：
+http://zookeeper.apache.org
+http://blog.fens.me/hadoop-zookeeper-intro/
+http://www.blogjava.net/hello-yun/archive/2012/05/03/377250.html

@@ -1,0 +1,78 @@
+﻿flume-ng 1.4.0安装
+
+前提：
+  本安装包括单机安装和集群安装。
+  默认已经安装好JDK
+
+1.下载安装flume 1.3.1
+Flume的下载地址
+https://flume.apache.org/
+tar zxvf apache-flume-1.4.0-bin.tar.gz -C /opt/
+
+2. 增加环境变量 /etc/profile
+export  FLUME_HOME=/opt/apache-flume-1.4.0-bin
+export  FLUME_CONF_DIR=$FLUME_HOME/conf
+export  PATH=.:$PATH::$FLUME_HOME/bin
+
+3 验证 flume
+命令： 
+flume-ng  version
+结果：
+Flume 1.4.0
+Source code repository: https://git-wip-us.apache.org/repos/asf/flume.git
+Revision: 756924e96ace470289472a3bdb4d87e273ca74ef
+Compiled by mpercy on Mon Jun 24 18:22:14 PDT 2013
+From source with checksum f7db4bb30c2114d0d4fde482f183d4fe
+
+
+4. 本测试项目的配置文件
+4.1 /opt/flume-1.4.0/conf/exec.conf  内容：
+# Name the  components on this agent
+a1.sources =  r1
+a1.sinks =  k1
+a1.channels  = c1
+
+#  Describe/configure the source
+a1.sources.r1.type = exec
+a1.sources.r1.command = tail -F /home/lianghs/testflumeinput.log
+a1.sources.r1.channels = c1
+
+# Describe  the sink
+#a1.sinks.k1.type  = logger
+#a1.sinks.k1.type = hbase
+#a1.sinks.k1.table = logdemo
+#a1.sinks.k1.columnFamily = message
+#a1.sinks.k1.serializer = org.apache.flume.sink.hbase.RegexHbaseEventSerializer
+a1.sinks.k1.type=org.apache.flume.sink.redis.RedisSink
+a1.sinks.k1.hostname=10.127.1.152
+a1.sinks.k1.port=6379
+a1.sinks.k1.batchsize=1
+a1.sinks.k1.timeout=300
+a1.sinks.k1.serializer=org.apache.flume.sink.redis.SimpleRedisEventSerializer
+#mode: publisher,counter,push
+a1.sinks.k1.mode=push
+#mode=publisher时的channel,以及为push时的key
+a1.sinks.k1.pubSubChannel=test_topic  
+
+
+# Use a  channel which buffers events in memory
+a1.channels.c1.type  = memory
+a1.channels.c1.capacity  = 1000
+a1.channels.c1.transactionCapacity  = 100
+
+# Bind the  source and sink to the channel
+a1.sources.r1.channels  = c1
+a1.sinks.k1.channel  = c1
+
+
+4.2 加入依赖jar
+上传 flume-ng-redis-sink-1.4.0.jar, jedis-2.1.0.jar 到flume-ng的lib目录: /opt/flume-1.4.0/lib
+
+
+4.3 执行后台服务命令：
+nohup /opt/flume-1.4.0/bin/flume-ng  agent -c . -f /opt/flume-1.4.0/conf/exec.conf -n a1 -Dflume.root.logger=INFO >>/opt/flume-1.4.0/logs/flume.log &
+
+
+5. 参考资料：
+https://flume.apache.org/
+http://ydt619.blog.51cto.com/316163/1230586

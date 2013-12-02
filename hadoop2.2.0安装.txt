@@ -1,0 +1,261 @@
+﻿hadoop2.2.0 安装
+
+  本安装包括单机安装和集群安装。
+
+1.  /etc/hosts 配置
+127.0.0.1      localhost
+192.168.56.10  redhat63
+
+ 注：若有多台机器集群安装(3台及以上)，则相应加上。并且每台机器都要相同。
+
+2. SSH无验证登录配置
+    若单台机器，建议直接使用root，若多台机器集群安装，则建议新建一个统一的hadoop用户，建用户相关操作不在此描述了。
+ 生成文件命令： 
+   ssh-keygen -t rsa
+ 然后连续按回车即可。
+ 然后把用户的 .ssh目录下的 id_dsa.pub 文件复制到 authorized_keys ，如命令:
+ cp ~/.ssh/id_dsa.pub  ~/.ssh/authorized_keys
+ 然后修改authorized_keys的权限为644，命令为: chmod 644 authorized_keys
+ 
+     若多台机器集群安装，并且只安装hadoop，则把authorized_keys 从主服务器复制到其他节点服务器即可，可用 sftp或者 scp命令，如:
+ scp authorized_keys 192.168.56.11:/home/hadoop/.ssh/
+     但若需要安装此项目，建议所有机器之间做相互无难登录，则每个机器都先生成 id_dsa.pub 文件，然后用cat的命令把内容都合并到一个文件，再复制到所有机器。
+
+3. 下载hadoop安装包
+  http://hadoop.apache.org/
+  或者直接到mirror网站,如： http://mirrors.cnnic.cn/apache/hadoop/common/hadoop-2.2.0/hadoop-2.2.0.tar.gz
+
+4. 解压文件
+  把文件 hadoop-2.2.0.tar.gz 放到 /opt目录下，然后解压，命令如下：
+  tar zxf hadoop-2.2.0.tar.gz
+  生成目录： /opt/hadoop-2.2.0
+  若多台机器集群安装，则每台机器也这样解压文件。
+  
+5. 配置环境变量
+  若单机root安装，建议直接配置到 /etc/profile中；若多台机器集群安装，并且非root用户，建议配置到用户的 .bashrc 文件中
+  环境变量包括： 
+export HADOOP_HOME=/app/hadoop-2.2.0
+exportPATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+export HADOOP_HOME_WARN_SUPPRESS=1
+  若多台机器集群安装，则每台机器也这样配置。
+
+6. 准备HDOOP存储及临时目录
+  命令如下：
+  mkdir /opt/hdfs/name -p 
+  mkdir /opt/hdfs/date -p 
+  mkdir /opt/hdfs/temp -p 
+  mkdir /opt/hdfs/mapred/temp -p 
+  mkdir /opt/hdfs/mapred/local -p 
+  mkdir /opt/hdfs/mapred/system -p 
+  若多台机器集群安装，则每台机器也这样创建目录。
+
+7. 配置hadoop参数
+  参数文件存放在 hadoop-2.2.0/etc/hadoop目录下， 需要进入此目录，如命令： 
+  cd /opt/hadoop-2.2.0/etc/hadoop
+  检查当前所在目录命令： pwd
+   /app/hadoop-2.2.0/etc/hadoop
+
+7.1 配置 core-site.xml
+命令：  vi core-site.xml
+内容如下： 
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+<property>
+ <name>fs.default.name</name>
+ <value>hdfs://192.168.56.11:9000</value>
+ <final>true</final>
+ <description>配置HDFS主服务器的IP地址和端口</description>
+</property>
+<property>
+  <name>io.file.buffer.size</name>
+  <value>131072</value>
+</property>
+<property>
+  <name>hadoop.tmp.dir</name>
+  <value>file:/opt/hdfs/temp</value>
+  <description>Abase for other temporary directories.</description>
+</property>
+<property>
+  <name>hadoop.proxyuser.hduser.hosts</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.hduser.groups</name>
+  <value>*</value>
+</property>
+</configuration>
+
+7.2 配置 hdfs-site.xml
+命令：  vi hdfs-site.xml
+内容如下： 
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>dfs.namenode.secondary.http-address</name>
+    <value>192.168.56.11:9001</value>
+    <description>配置HDFS次主服务器(secondary namenode)的IP地址和端口</description>
+  </property>
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value>file:/opt/hdfs/name</value>
+    <final>true</final>
+    <description>Determineswhere on the local filesystem the DFS name node should store the name table. Ifthis is a comma-delimited list of directories then the name table is replicatedin all of the directories, for redundancy. </description>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file:/opt/hdfs/data</value>
+    <final>true</final>
+    <description>Determineswhere on the local filesystem an DFS data node should store its blocks. If thisis a comma-delimited list of directories, then data will be stored in all nameddirectories, typically on different devices.Directories that do not exist areignored.</description>
+  </property>
+  <property>
+    <name>dfs.replication</name>
+    <value>1</value>
+    <description>HDFS文存放的份数，若单机，则写1，若集群安装，则建议写成3 </description>
+  </property>
+  <property>
+    <name>dfs.permissions</name>
+    <value>false</value>
+  </property>
+  <property>
+    <name>dfs.webhdfs.enabled</name>
+    <value>true</value>
+  </property>
+</configuration>
+
+7.3 配置 mapred-site.xml
+命令：  vi mapred-site.xml
+注: 好像这个mapred参数在2.0开始废掉了，用yarn代替了。还有前面创建的两个和这相关的目录，好像都没使用到。
+ 但还是建议先配置上，并且都是配置主服务器的IP
+内容如下：  
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>mapreduce.framework.name</name>
+    <value>yarn</value>
+  </property>
+  <property>
+    <name>mapreduce.jobhistory.address</name>
+    <value>192.168.56.11:10020</value>
+  </property>
+  <property>
+    <name>mapreduce.jobhistory.webapp.address</name>
+    <value>192.168.56.11:19888</value>
+  </property>
+  <property>
+    <name>mapred.system.dir</name>
+    <value>file:/opt/hdfs/mapred/system</value>
+    <final>true</final>
+  </property>
+  <property>
+    <name>mapred.local.dir</name>
+    <value>file:/opt/hdfs/mapred/local</value>
+    <final>true</final>
+  </property>
+  <property>
+    <name>mapreduce.cluster.temp.dir</name>
+    <value>file:/opt/hdfs/mapred/temp</value>
+    <description>No description</description>
+    <final>true</final>
+  </property>
+</configuration>
+
+7.4 配置 mapred-site.xml
+命令： vi yarn-site.xml
+内容如下： 
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>yarn.nodemanager.aux-services</name>
+    <value>mapreduce_shuffle</value>
+  </property>
+  <property>
+    <name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
+    <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.address</name>
+    <value>192.168.56.11:8032</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.scheduler.address</name>
+    <value>192.168.56.11:8030</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.resource-tracker.address</name>
+    <value>192.168.56.11:8031</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.admin.address</name>
+    <value>192.168.56.11:8033</value>
+  </property>
+  <property>
+    <name>yarn.resourcemanager.webapp.address</name>
+    <value>192.168.56.11:8088</value>
+  </property>
+</configuration>
+
+ 
+
+7.5 配置 hadoop-env.sh
+命令： vi hadoop-env.sh
+找到了 export JAVA_HOME 这行，大约在27行，输改为正确的路径，如：
+export JAVA_HOME=/usr/java/jdk1.7.0_45
+
+7.6 配置 yarn-env.sh
+命令： vi yarn-env.sh
+找到了 export JAVA_HOME 这行，大约在23行，输改为正确的路径，如：
+export JAVA_HOME=/usr/java/jdk1.7.0_45
+
+7.8 配置slaves
+命令：  vi slaves
+内容如下： 
+192.168.56.10
+
+若多台机器集群安装，把做节点服务器的IP都写到这里。
+
+7.9 复制配置文件
+  若单机安装，则不必执行本步骤。
+  若多台机器集群安装，把以上 7.1至 7.8步所修改的配置复制到所有机器。
+  
+
+7.10 格式化：
+ 命令： hadoop namenode -format
+
+7.11 启动服务： 
+  start-all.sh
+  注：停止服务： stop-all.sh
+  
+7.12 检查进程是否启动
+  命令查检，命令：jps
+2912 NameNode
+5499 ResourceManager
+2981 DataNode
+6671 Jps
+6641 NodeManager
+6473 SecondaryNameNode
+
+若多台机器集群安装，则每台节点上的进程为：DataNode和NodeManager
+
+  WEB页面检查，查看hadoop资源管理页面
+http://192.168.56.11:8088
+
+8 运行示例程序：
+
+先在hdfs上创建一个文件夹，命令：
+hadoop fs –mkdir /input
+执行HADOOP的一个样例JOB，命令：
+hadoop jar /opt/hadoop-2.2.0/share/hadoop/mapreduce/hadoop-mapreduce-examples-2.2.0.jar randomwriter out
+杀掉JOB命令：
+hadoop job kill [job id]
+
+PS：若启动有问题，可以从 hadoop-2.2.0/logs/目录相查看log文件，一般都能找到问题所有的，一般都是配置出了问题，根据相应的问题相应解决即可。
+
+
+9. 参考资料： 
+http://hadoop.apache.org
+http://blog.csdn.net/bamuta/article/details/12854337
+http://wenku.baidu.com/view/1681511a52d380eb62946df6.html

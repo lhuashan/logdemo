@@ -1,0 +1,187 @@
+﻿storm安装
+
+前提：
+  本安装包括单机安装和集群安装。
+  默认已经安装好JDK、
+  配置好/etc/hosts、ssh无验证登录（可参考文件: hadoop2.2.0安装.txt)
+  配置好了zookeeper（可参考文件: zookeeper安装.txt)
+
+  注：
+  若多台机器集群安装，则每台机器都需求安装下面的ZeroMQ、JZMQ、Java、Python、unzip
+
+1. ZeroMQ安装
+下载后编译安装ZMQ：
+wget http://download.zeromq.org/zeromq-2.1.7.tar.gz
+tar -xzf zeromq-2.1.7.tar.gz
+cd zeromq-2.1.7
+./configure
+make
+sudo make install
+注意事项：
+在./configure中可能会遇到的问题：
+首先遇到了：configure:error:in '/usr/local/download/zeromq-2.1.7':
+congifure:error:no acceptable C compiler found in $PATH
+See 'config.log' for more details
+这是因为没有安装C编译器。
+解决方法是：# yum install gcc*
+之后遇到的问题是：Error:cannot link with -luuid, install uuid-dev
+这是因为没有安装uuid相关的package。
+解决方法是：# yum install uuid*
+# yum install e2fsprogs*
+# yum install libuuid*
+# yum install make.x86_64
+问题解决了以后就可以make和make install了，如此这般，zeromq就安装好了，接下来我们安装jzmq。
+
+
+2 安装JZMQ
+下载后编译安装JZMQ：
+tar -xzf jzmq-2.2.2.tar.gz
+./autogen.sh
+./configure
+make
+sudo make install
+注意事项：
+在./autogen.sh中可能会遇到的问题： 
+autogen.sh: error: could not find libtool.  libtool is required to run autogen.sh.
+需求安装libtool：
+#yum install libtool.x86_64
+
+为了保证JZMQ正常工作，可能需要完成以下配置：
+正确设置 JAVA_HOME环境变量
+安装Java开发包
+升级autoconf
+
+3 安装Python2.6.6
+3.1. 下载Python2.6.6：
+wget http://www.python.org/ftp/python/2.6.6/Python-2.6.6.tar.bz2
+3.2. 编译安装Python2.6.6：
+tar -zxvf  Python-2.6.6.tar.bz
+cd Python-2.6.6
+./configure
+make
+make install
+3.3. 测试Python2.6.6：
+python -V
+Python 2.6.6
+
+4. 安装unzip
+4.1. 如果使用RedHat系列Linux系统，执行以下命令安装unzip：
+apt-get install unzip
+4.2. 如果使用Debian系列Linux系统，执行以下命令安装unzip：
+yum install unzip
+
+5 下载并解压Storm发布版本
+
+5.1. 下载Storm发行版本（推荐使用Storm0.8.1）：
+wget https://github.com/downloads/nathanmarz/storm/storm-0.8.1.zip
+或者： http://storm-project.net/downloads.html
+
+5.2. 解压到安装目录下：
+unzip storm-0.8.1.zip
+形成 /opt/storm-0.8.1/
+
+5.3 修改storm.yaml配置文件
+Storm发行版本解压目录下有一个conf/storm.yaml文件，用于配置Storm。默认配置在这里可以查看。conf/storm.yaml中的配置选项将覆盖defaults.yaml中的默认配置。以下配置选项是必须在conf/storm.yaml中进行配置的：
+
+5.3.1 storm.zookeeper.servers: Storm集群使用的Zookeeper集群地址，其格式如下：
+storm.zookeeper.servers:
+- “111.222.333.444″
+- “555.666.777.888″
+如果Zookeeper集群使用的不是默认2181端口，那么还需要storm.zookeeper.port选项。
+
+5.3.1.2 storm.local.dir: Nimbus和Supervisor进程用于存储少量状态，如jars、confs等的本地磁盘目录，需要提前创建该目录并给以足够的访问权限。然后在storm.yaml中配置该目录，如：
+storm.local.dir: "/opt/hdfs/storm/workdir"
+
+需要在操作系统下创建此目录，命令： 
+mkdir /opt/hdfs/storm/workdir -p
+
+5.3.1.3 java.library.path: Storm使用的本地库（ZMQ和JZMQ）加载路径，默认为”/usr/local/lib:/opt/local/lib:/usr/lib”，一般来说ZMQ和JZMQ默认安装在/usr/local/lib 下，因此不需要配置即可。
+
+5.3.1.4 nimbus.host: Storm集群Nimbus机器地址，各个Supervisor工作节点需要知道哪个机器是Nimbus，以便下载Topologies的jars、confs等文件，如：
+nimbus.host: "111.222.333.444"
+
+5.3.1.5 supervisor.slots.ports: 对于每个Supervisor工作节点，需要配置该工作节点可以运行的worker数量。每个worker占用一个单独的端口用于接收消息，该配置选项即 用于定义哪些端口是可被worker使用的。默认情况下，每个节点上可运行4个workers，分别在6700、6701、6702和6703端口，如：
+supervisor.slots.ports:
+ - 6700
+ - 6701
+ - 6702
+ - 6703
+
+注意事项：
+　　这个脚本文件写的不咋地，所以在配置时一定注意在每一项的开始时要加空格，冒号后也必须要加空格，否则storm就不认识这个配置文件了，切记切记。
+
+storm.yaml 整体参考文件内容如下：
+########### These MUST be filled in for a storm configuration
+ storm.zookeeper.servers: 
+ - "10.127.1.152"
+ - "10.127.1.153"
+
+ storm.local.dir: "/home/admin/storm/workdir"
+# 
+ nimbus.host: "10.127.1.152"
+
+ supervisor.slots.ports:
+ - 6700
+ - 6701
+ - 6702
+ - 6703
+# 
+# 
+# ##### These may optionally be filled in:
+#    
+## List of custom serializations
+# topology.kryo.register:
+#     - org.mycompany.MyType
+#     - org.mycompany.MyType2: org.mycompany.MyType2Serializer
+#
+## List of custom kryo decorators
+# topology.kryo.decorators:
+#     - org.mycompany.MyDecorator
+#
+## Locations of the drpc servers
+# drpc.servers:
+#     - "server1"
+#     - "server2"
+
+6 启动Storm各个后台进程
+    启动Storm的所有后台进程。和Zookeeper一样，Storm也是快速失败（fail-fast)的系统，这样Storm才能在 任意时刻被停止，并且当进程重启后被正确地恢复执行。这也是为什么Storm不在进程内保存状态的原因，即使Nimbus或Supervisors被重 启，运行中的Topologies不会受到影响。
+以下是启动Storm各个后台进程的方式：
+Nimbus: 在Storm主控节点上运行”bin/storm nimbus >/dev/null 2>&1 &”启动Nimbus后台程序，并放到后台执行；
+Supervisor: 在Storm各个工作节点上运行”bin/storm supervisor >/dev/null 2>&1 &”启动Supervisor后台程序，并放到后台执行；
+UI: 在Storm主控节点上运行”bin/storm ui >/dev/null 2>&1 &”启动UI后台程序，并放到后台执行，启动后可以通过http://{nimbus host}:8080观察集群的worker资源使用情况、Topologies的运行状态等信息。
+
+注意事项：
+启动Storm后台进程时，需要对conf/storm.yaml配置文件中设置的storm.local.dir目录具有写权限。
+Storm后台进程被启动后，将在Storm安装部署目录下的logs/子目录下生成各个进程的日志文件。
+经测试，Storm UI必须和Storm Nimbus部署在同一台机器上，否则UI无法正常工作，因为UI进程会检查本机是否存在Nimbus链接。
+为了方便使用，可以将bin/storm加入到系统环境变量中。
+至此，Storm集群已经部署、配置完毕，可以向集群提交拓扑运行了。
+
+7. 检查进程
+命令 jps
+nimbus服务器的进程：
+21586 QuorumPeerMain
+8084 nimbus
+8216 Jps
+
+Supervisors服务器的进程：
+21586 QuorumPeerMain
+25489 supervisor
+8216 Jps
+
+UI服务器的进程：
+8060 core
+8216 Jps
+21586 QuorumPeerMain
+
+8. WEB页面检查状态
+若有启动UI服务，则可以通过前台web页面检查状态
+http://10.127.1.152:8080
+
+9.参考资料
+http://storm-project.net/
+http://blog.linezing.com/category/storm-quick-start
+http://blog.csdn.net/lonelytrooper/article/details/9959901
+http://blog.sina.com.cn/s/blog_5ca749810101ceqz.html
+http://www.drdobbs.com/cloud/easy-real-time-big-data-analysis-using-s/240143874
+http://www.csdn.net/article/2012-12-24/2813117-storm-realtime-big-data-analysis

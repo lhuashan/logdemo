@@ -1,0 +1,121 @@
+﻿Hive的安装和配置详解 
+
+  前提： 
+  a. 建议把hive的meta信息放到MySQL中，以下配置也是放在HIVE中，若放到HIVE自带的derby库，也可参考附件。
+  b. 默认已经安装好JDK, MYSQL, HADOOP，并且hive安装在hadoop集群中的某台机器，建议就安装在主服务器上。
+
+1. 下载的安装包
+  当前最新的是0.12.0
+  http://hive.apache.org/
+  http://mirror.bit.edu.cn/apache/hive/
+  
+2. 解压文件
+  把文件 hadoop-2.2.0.tar.gz 放到 /opt目录下，然后解压，命令如下：
+  tar zxf hive-0.12.0.tar.gz
+  生成目录： /opt/hive-0.12.0
+
+3. 配置环境变量
+  若单机root安装，建议直接配置到 /etc/profile中；若多台机器集群安装，并且非root用户，建议配置到用户的 .bashrc 文件中
+  环境变量包括： 
+export HIVE_HOME=/opt/hive-0.12.0 
+export HIVE_CONF_DIR=$HIVE_HOME/conf 
+export HIVE_LIB=$HIVE_HOME/lib 
+export CLASSPATH=$CLASSPATH:$HIVE_LIB 
+export PATH=$HIVE_HOME/bin/:$PATH 
+
+4. mysql中增加hive用户
+  若直接用现有的用户，如root，则略过此步骤。
+  新增用户: 
+mysql> CREATE USER 'hive'@'localhost' IDENTIFIED BY 'hive';
+Query OK, 0 rows affected (0.00 sec)   
+用户授权：
+mysql> GRANT ALL PRIVILEGES ON *.* TO 'hive'@'localhost' WITH GRANT OPTION; 
+Query OK, 0 rows affected (0.00 sec)  
+ mysql> flush privileges;  Query OK, 0 rows affected (0.00 sec) 
+
+验证用户，可以用hive用户登录试验添加成功了没
+$ mysql -u hive -p hive 
+
+Welcome to the MySQL monitor.  Commands end with ; or \g. 
+Your MySQL connection id is 317586
+Server version: 5.0.77 Source distribution   
+Type 'help;' or '\h' for help. Type '\c' to clear the buffer.   
+mysql> 
+
+5. 配置参数
+  配置文件目录: /opt/hive-0.12.0/conf/
+5.1 复制hive-default.xml.template 为hive-default.xml，命令：
+cp hive-default.xml.template hive-default.xml
+
+5.2 配置hive-env.sh.template
+命令： vi hive-env.sh.template,
+修改其中的HADOOP_HOME为实际的Hadoop安装目录，大约在38行
+HADOOP_HOME=/opt/hadoop-2.2.0
+
+5.3 hive的meta存储配置, 采用mysql库的hive-site.xml配置如下
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+	<property>
+		<name>hive.metastore.local</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionURL</name>
+		<value>jdbc:mysql://localhost:3306/hive?createDatabaseIfNotExist=true</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionDriverName</name>
+		<value>com.mysql.jdbc.Driver</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionUserName</name>
+		<value>hive</value>
+	</property>
+	<property>
+		<name>javax.jdo.option.ConnectionPassword</name>
+		<value>hive</value>
+	</property>
+	<property>
+		<name>datanucleus.fixedDatastore</name>
+		<value>false</value>
+	</property>
+</configuration>
+   在mysql库中必须创建用户hive，密码也为hive。还要给hive用户赋予权限，否则会出错。
+
+
+采用本地derby数据库保存meta信息,hive-site.xml配置如下：
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+<property>
+  <name>javax.jdo.option.ConnectionURL</name>
+<value>jdbc:derby:;databaseName=metastore_db;create=true</value>
+  <description>JDBC connect string for a JDBC metastore</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionDriverName</name>
+  <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+  <description>Driver class name for a JDBC metastore</description>
+</property>
+<property>
+  <name>javax.jdo.option.ConnectionUserName</name>
+  <value>APP</value>
+  <description>username to use against metastore database</description>
+</property>
+ 
+<property>
+  <name>javax.jdo.option.ConnectionPassword</name>
+  <value>mine</value>
+  <description>password to use against metastore database</description>
+</property> 
+</configuration>
+
+
+7. 参考资料：
+http://hive.apache.org
+http://www.cnblogs.com/flying5/archive/2011/05/23/2078399.html
+http://www.fuzhijie.me/?p=381
+http://www.tbdata.org/archives/category/hive
+
