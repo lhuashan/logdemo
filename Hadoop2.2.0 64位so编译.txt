@@ -1,0 +1,87 @@
+Hadoop2.2.0 64位so编译
+来源：http://blog.csdn.net/focusheart/article/details/14058153
+
+前言：
+  由于Hadoop 2.2.0默认配置的libhadoop是32位的，在64位的操作系统环境运行过程中，会提示以下错误：
+[plain] view plaincopyprint?
+Java HotSpot(TM) 64-Bit Server VM warning: You have loaded library /opt/hadoop-2.2.0/lib/native/libhadoop.so.1.0.0 which might have disabled stack guard. The VM will try to fix the stack guard now.  
+It's highly recommended that you fix the library with 'execstack -c <libfile>', or link it with '-z noexecstack'.  
+13/11/01 10:58:59 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable  
+需要重新编译Hadoop的代码，得到适合的库文件。按以下步骤执行。
+
+1. 安装c相关编译工具
+命令如下：
+yum install g++ autoconf automake libtool cmake zlib1g-dev pkg-config libssl-dev 
+
+2. 安装 maven
+2.1 下载
+   官网 http://maven.apache.org/ 下载最新版Maven。
+   我用的是apache-maven-3.0.4-bin.tar.gz。
+   将下载后的文件拷贝到 /opt/目录下。
+ 
+2.2、执行 tar -zxvf apache-maven-3.0.4-bin.tar.gz 命令解压文件
+ 
+2.3、解压后会生成apache-maven-3.0.4目录，删除apache-maven-3.0.4-bin.tar.gz压缩包文件
+ 
+2.4、执行 mv apache-maven-3.0.4 maven3.1.1
+ 
+2.5、执行 vi /etc/profile 文件，插入如下内容
+ 
+         export M2_HOME=/opt/maven3.1.1
+         PATH=$PATH:$M2_HOME/bin
+ 
+2.6、保存并退出VI编辑器，执行 source /etc/profile 命令使改动生效
+ 
+2.7、执行 mvn -v 命令，如出现如下内容表示安装配置成功
+ 
+         [root@xg /]# mvn -v                                                                                                        
+         Apache Maven 3.0.4 (r1232337; 2012-01-17 16:44:56+0800)                                        
+         Maven home: /usr/local/apache-maven                                                                              
+         Java version: 1.6.0_33, vendor: Sun Microsystems Inc.                                                     
+         Java home: /usr/local/jdk1.6.0_33/jre                                                                              
+         Default locale: zh_CN, platform encoding: UTF-8                                                                
+         OS name: "linux", version: "2.6.32-279.2.1.el6.x86_64", arch: "amd64", family: "unix" 
+
+3 安装 protobuf
+  需求最新的2.5版及以上版本
+
+3.1 下载
+  从官网 https://code.google.com/p/protobuf/downloads/list 下载  protobuf-2.5.0.tar.gz
+  并放到 /opt/ 目录下         
+
+3.2、执行 tar -zxvf protobuf-2.5.0.tar.gz 命令解压文件
+
+3.3 编译 protobuf, 命令如下
+$ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/lib:/usr/lib"
+注意，必须设置这个路径，不然编译会出错。。
+$ cd protobuf-2.5.0  
+$ ./configure --prefix=/usr  
+$ make  
+$ make install
+
+4 编译hadoop2.2.0
+4.1 从官网 http://hadoop.apache.org 下载 hadoop-2.2.0-src.tar.gz
+
+4.2 解压进入hadoop源码目录，执行编译：
+$ tar xzvf hadoop-2.2.0-src.tar.gz  
+$ cd hadoop-2.2.0-src  
+$ mvn package -Pdist,native -DskipTests -Dtar  
+
+编译过程中maven会自动下载依赖。编译完成后，系统会提示以下信息：
+[plain] view plaincopyprint?
+[INFO] BUILD SUCCESS  
+[INFO] ------------------------------------------------  
+[INFO] Total time: 15:39.705s  
+[INFO] Finished at: Fri Nov 01 14:36:17 CST 2013  
+[INFO] Final Memory: 135M/422M  
+然后在以下目录可以获取编译完成的libhadoop：
+[plain] view plaincopyprint?
+hadoop-2.2.0-src/hadoop-dist/target/hadoop-2.2.0/lib  
+注：默认源地址下，maven下载依赖时间极长，建议使用国内源，参考《maven国内镜像配置》文档。
+
+4.3 然后将编译的lib/native文件夹替换原本的
+  这两个目录：
+  hadoop-hdfs-project/hadoop-hdfs/target/native/target/usr/local/lib/*
+  hadoop-common-project/hadoop-common/target/native/target/usr/local/lib/*
+  复制到hadoop的安装目录的 lib/native/ 目录下
+  

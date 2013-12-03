@@ -62,7 +62,8 @@ export HADOOP_HOME_WARN_SUPPRESS=1
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
 <property>
- <name>fs.default.name</name>
+<!-- <name>fs.default.name</name> -->
+ <name>fs.defaultFS</name>
  <value>hdfs://192.168.56.11:9000</value>
  <final>true</final>
  <description>配置HDFS主服务器的IP地址和端口</description>
@@ -122,6 +123,25 @@ export HADOOP_HOME_WARN_SUPPRESS=1
     <name>dfs.webhdfs.enabled</name>
     <value>true</value>
   </property>
+  <property>
+    <name>dfs.replication</name>
+    <value>1</value>
+    <description>HDFS文存放的份数，若单机，则写1，若集群安装，则建议写成3 </description>
+  </property>
+  <property>
+    <name>dfs.support.append</name>
+    <value>true</value>
+    <description>Does HDFS allow appends to files?</description>
+  </property>
+  <property>
+    <name>dfs.blocksize</name>
+    <value>134217728</value>
+  </property>
+  <property>
+    <name>dfs.namenode.handler.count</name>
+    <value>100</value>
+    <description>More NameNode server threads to handle RPCs from large number of DataNodes.</description>
+  </property>
 </configuration>
 
 7.3 配置 mapred-site.xml
@@ -160,9 +180,54 @@ export HADOOP_HOME_WARN_SUPPRESS=1
     <description>No description</description>
     <final>true</final>
   </property>
+  <property>
+    <name>mapreduce.map.memory.mb</name>
+    <value>512</value>
+    <description>Larger resource limit for maps.</description>
+  </property>
+  <property>
+    <name>mapreduce.map.java.opts</name>
+    <value>-Xmx512M</value>
+    <description>Larger heap-size for child jvms of maps.</description>
+  </property>
+  <property>
+    <name>mapreduce.reduce.memory.mb</name>
+    <value>512</value>
+    <description>Larger resource limit for reduces.</description>
+  </property>
+  <property>
+    <name>mapreduce.reduce.java.opts</name>
+    <value>-Xmx512M</value>
+    <description>Larger heap-size for child jvms of reduces.</description>
+  </property>
+  <property>
+    <name>mapreduce.task.io.sort.mb</name>
+    <value>512</value>
+    <description>Higher memory-limit while sorting data for efficiency.</description>
+  </property>
+  <property>
+    <name>mapreduce.task.io.sort.factor</name>
+    <value>100</value>
+    <description>More streams merged at once while sorting files.</description>
+  </property>
+  <property>
+    <name>mapreduce.reduce.shuffle.parallelcopies</name>
+    <value>50</value>
+    <description>Higher number of parallel copies run by reduces to fetch outputs from very large number of maps.</description>
+  </property>
+  <property>
+    <name>mapreduce.tasktracker.map.tasks.maximum</name>
+    <value>8</value>
+    <description>The maximum number of map tasks that will be run simultaneously by a task tracker.</description>
+  </property>
+  <property>
+    <name>mapreduce.tasktracker.reduce.tasks.maximum</name>
+    <value>2</value>
+    <description>The maximum number of reduce tasks that will be run simultaneously by a task tracker.</description>
+  </property>
 </configuration>
 
-7.4 配置 mapred-site.xml
+7.4 配置 yarn-site.xml
 命令： vi yarn-site.xml
 内容如下： 
 <?xml version="1.0" encoding="UTF-8"?>
@@ -254,8 +319,19 @@ hadoop job kill [job id]
 
 PS：若启动有问题，可以从 hadoop-2.2.0/logs/目录相查看log文件，一般都能找到问题所有的，一般都是配置出了问题，根据相应的问题相应解决即可。
 
+9. 64位的linux需要替换so文件。
+  由于Hadoop 2.2.0默认配置的libhadoop是32位的，在64位的操作系统环境运行过程中，会提示以下错误：
+Java HotSpot(TM) 64-Bit Server VM warning: You have loaded library /opt/hadoop-2.2.0/lib/native/libhadoop.so.1.0.0 which might have disabled stack guard. The VM will try to fix the stack guard now.  
+It's highly recommended that you fix the library with 'execstack -c <libfile>', or link it with '-z noexecstack'.  
+13/11/01 10:58:59 WARN util.NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable  
 
-9. 参考资料： 
+方法一：下载源码，在64的机器上编译，详细参考文件  Hadoop2.2.0 64位so编译.txt
+方法二：把前人编译好的文件放到 HADOOP的安装目录下的 lib/native/目录下，替换原来的文件。
+  编译好的文件在：hadoop-2.2.0-x64-lib.tar.gz
+  用命令 tar zxvf hadoop-2.2.0-x64-lib.tar.gz 命令解压
+
+
+10. 参考资料： 
 http://hadoop.apache.org
 http://blog.csdn.net/bamuta/article/details/12854337
 http://wenku.baidu.com/view/1681511a52d380eb62946df6.html
